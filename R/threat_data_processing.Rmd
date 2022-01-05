@@ -1,0 +1,142 @@
+---
+title: "Threat Index Data processing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# load packages
+library(tidyverse)
+library(sf)
+library(here)
+library(raster)
+```
+
+This Rmarkdown is for any data cleaning or joining necessary for the threat index variables.
+
+```{r, echo=FALSE}
+##### read in the data #####
+
+# sonoma county
+sonoma_county <- sf::read_sf(here("data/clean/sonoma_county_boundary/sonoma_county_boundary.shp"))
+
+# Sonoma Wildfire Hazard Index
+raw_fire_hazard <- raster::raster(here("data/raw/sc_wildfire_hazard_02.23.21/HAZARD_V5_96FT_CLASSIFIED.tif"))
+
+# SLR 200 cm
+slr_200cm <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.2/sonoma_fldhazd_slr200_w000.shp"))
+bdb_slr_200cm <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.0/sonoma_fldhazd_slr200_w000.shp"))
+sfb_slr_200cm <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.1/sfb_fldhazd_slr200_w000.shp"))
+
+# SLR 200 cm + 100 year storm
+slr_200cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.2/sonoma_fldhazd_slr200_w100.shp"))
+bdb_slr_200cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.0/sonoma_fldhazd_slr200_w100.shp"))
+sfb_slr_200cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.1/sfb_fldhazd_slr200_w100.shp"))
+```
+
+Create an empty raster to rasterize polygons with
+
+```{r}
+# Reclassification matrix for empty raster
+rcl_matrix <- c(-Inf, Inf, 0)
+
+# Reclassify the depth layer to make it an empty raster
+empty_raster <- reclassify(raw_fire_hazard, rcl= rcl_matrix)
+
+```
+
+# Wildfire Hazard Index
+```{r}
+# get rid of black background values
+rcl_fix <- c(5, Inf, 0)
+fire_hazard_rcl <- reclassify(raw_fire_hazard, rcl_fix)
+
+# write raster to clean data folder
+writeRaster(fire_hazard_rcl, here("data/clean/fire_hazard_index.tif"))
+
+```
+
+
+# Sea Level Rise
+
+### Combine SLR layers into one polygon
+
+```{r}
+# function to combine all the slr regions into one polygon
+combine_slr = function(outer_sonoma, bdg_bay, sf_bay, sonoma_county){
+  
+  # change sonoma county crs to flood layer crs
+  soco_crs <- st_transform(sonoma_county, st_crs(sf_bay))
+
+  # crop sf bay to sonoma county
+  sfb_crop <- st_crop(sf_bay, soco_crs)
+  
+  # use st_combine to simplify polygons
+  outer_sonoma_comb <- st_combine(outer_sonoma)
+  bdg_bay_comb <- st_combine(bdg_bay)
+  
+  # combine outer coast and bodega bay
+  sonoma_bdb <- st_union(outer_sonoma_comb, bdg_bay_comb)
+  
+  # combine San Fracisco Bay
+  all_slr <- st_union(sonoma_bdb, sfb_crop)
+  
+  return(all_slr)
+  
+}
+
+# run the function and save the polygon
+all_fld_200cm <- combine_slr(slr_200cm, bdb_slr_200cm, sfb_slr_200cm, sonoma_county)
+write_sf(all_fld_200cm, here("data/clean/fldhazd_slr200_w000/all_fldhazd_slr200_w000.shp"))
+
+all_fld_200cm_100yr <- combine_slr(slr_200cm_100yr, bdb_slr_200cm_100yr, sfb_slr_200cm_100yr, sonoma_county)
+write_sf(all_fld_200cm_100yr, here("data/clean/fldhazd_slr200_w100/all_fldhazd_slr200_w100.shp"))
+
+```
+
+
+```{r}
+
+# read in the cleaned dataframes
+all_fld_200cm <- read_sf(here("data/clean/fldhazd_slr200_w000/all_fldhazd_slr200_w000.shp"))
+all_fld_200cm_100yr <- read_sf(here("data/clean/fldhazd_slr200_w100/all_fldhazd_slr200_w100.shp"))
+
+# just get the difference between slr scenarios
+slr_200cm_100yr_only <- st_difference(all_fld_200cm_100yr, all_fld_200cm) 
+```
+
+
+```{r}
+# check if worked
+ggplot() +
+ # geom_sf(data = sonoma_county, fill = "light grey") +
+  geom_sf(data = slr_200cm_100yr_only, fill = "green", color = "green")
+```
+
+### Rasterize the polygons
+
+```{r}
+
+# function to turn polygons into rasters
+change_to_raster = function(chosen_polygon, empty_raster, rank){
+  
+  polygon_crs <- st_transform(chosen_polygon, st_crs(empty_raster))
+  
+  final_raster <- rasterize(polygon_crs, empty_raster, field = rank, background = 0)
+  
+  return(final_raster)
+  
+}
+
+slr_200cm_raster <- change_to_raster(all_fld_200cm, empty_raster, rank = 2)
+slr_200cm_100yr_raster <- change_to_raster(slr_200cm_100yr_only, empty_raster, rank = 1)
+
+# combine into one raster
+slr_raster <- slr_200cm_raster + slr_200cm_100yr_raster
+plot(slr_raster)
+
+```
+
