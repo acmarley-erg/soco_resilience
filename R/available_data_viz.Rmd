@@ -1,0 +1,238 @@
+---
+title: "Available Data Show"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+library(tidyverse)
+library(sf)
+library(here)
+library(ggthemes)
+library(raster)
+```
+
+```{r, include = FALSE}
+
+### read in shapefiles ###
+
+## Administrative boundaries
+soco_bound <- read_sf(here("data/clean/sonoma_county_boundary/sonoma_county_boundary.shp"))
+ca_state <- sf::read_sf(here("data/clean/ca_state_boundary/ca_state_boundary.shp"))
+
+## Hazards
+flood_awareness <- read_sf(here("data/clean/flood_awareness_areas/flood_awareness_areas.shp"))
+landslide_risk <- raster(here("data/clean/soco_landslide_risk/ls_risk.tif"))
+bcm_data <- read_sf(here("data/clean/soco_bcm/soco_bcm_full_ws.shp"))
+fire_risk <- read_sf(here("data/clean/soco_wildfire_risk_index/Wildfire_Risk_Index.shp"))
+slr_75cm <- read_sf(here("data/clean/fldhazd_slr75_w000/all_fldhazd_slr75_w000.shp"))
+slr_75cm_100yr <- read_sf(here("data/clean/fldhazd_slr75_w100/all_fldhazd_slr75_w100.shp"))
+slr_200cm <- read_sf(here("data/clean/fldhazd_slr200_w000/all_fldhazd_slr200_w000.shp"))
+
+## Comunity assets
+priority_pops <- read_sf(here("data/clean/soco_priority_pops_ces3_2021/soco_priority_pop.shp"))
+calenviro <- read_sf(here("data/clean/soco_calenviroscreen_4.0/soco_calenviro.shp"))
+```
+
+#### **Data source:** []()
+
+## **Hazards**
+
+### Sea Level Rise
+
+#### **Data source:** [Our Coast Our Future](https://ourcoastourfuture.org/hazard-map/)
+
+```{r, echo = FALSE}
+ggplot() +
+  geom_sf(data = ca_state, fill = "grey") +
+  geom_sf(data = soco_bound, fill = "lightgrey") +
+  geom_sf(data = slr_200cm, fill = "#011f4b", color = "#011f4b") +
+  geom_sf(data = slr_75cm_100yr, fill = "#005b96", color = "#005b96") +
+  geom_sf(data = slr_75cm, fill = "#6497b1", color = "#6497b1") +
+  geom_sf(data = soco_bound, fill = NA) +
+  labs(
+    title = "200 cm (6.6 ft) [dark blue] / 75 cm (2.5 ft) + 100 yr flood [medium blue]/ 75 cm (2.5 ft)  [light blue]"
+  ) +
+  coord_sf(xlim = c(-123.5,-122.3), ylim = c(38.15,38.85)) +
+  theme_map()
+    
+```
+
+
+### Floodplains
+
+#### **Data source:** [Vital Lands](https://sonomaopenspace.egnyte.com/fl/Io8VY7hySY#folder-link/Flood_Awareness_Areas)
+
+```{r, echo = FALSE}
+# flood zones
+floodplains <- flood_awareness %>% 
+  filter(CLASS %in% c("Russian River Floodplain", "Mark West Creek Floodplain", "Floodplain"))
+
+ggplot() +
+  geom_sf(data = soco_bound, fill = "lightgrey") +
+  geom_sf(data = floodplains, fill = "blue", color = "blue") +
+  theme_map()
+```
+
+### Landslide risk
+
+#### **Data source:** [California Geological Survey](https://gis.conservation.ca.gov/portal/home/item.html?id=87289025c11d4ba7ae65f0f472bf7c2d) 
+
+```{r, echo = FALSE}
+plot(landslide_risk)
+```
+
+### Sonoma County Wildfire Hazard Index
+
+#### **Data source:** [Sonoma County](https://storymaps.arcgis.com/stories/a64d596a8be941c8b28263718880e433)
+
+```{r, echo = FALSE}
+
+ggplot() +
+  geom_sf(data = fire_risk, aes(fill = HEX_TUKMAN), color = NA) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1) +
+  geom_sf(data = soco_bound, color = "black", fill = NA) +
+  labs(
+    title = "",
+    fill = "Rank"
+  ) +
+  theme_map() +
+  theme(legend.position = "right")
+
+```
+
+
+### Sonoma County Wildfire Risk Index
+
+#### **Data source:** [Sonoma County CWPP Hub Site](https://sonoma-county-cwpp-hub-site-sonomacounty.hub.arcgis.com/datasets/wildfire-risk-index/explore?location=38.480883%2C-122.941170%2C10.41)
+
+```{r, echo = FALSE}
+
+ggplot() +
+  geom_sf(data = fire_risk, aes(fill = TOTAL_RANK), color = NA) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1) +
+  geom_sf(data = soco_bound, color = "black", fill = NA) +
+  labs(
+    title = "",
+    fill = "Rank"
+  ) +
+  theme_map() +
+  theme(legend.position = "right")
+
+```
+
+
+### BCM data
+
+#### **Data source:** [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst)
+
+```{r, echo = FALSE, fig.width=10, fig.height=4}
+
+bcm_ccsm <- bcm_data %>% 
+  filter(gcm == "CCSM4_rcp85") 
+
+# bcm plot
+bcm_plot = function(indicator, indicator_title, palette_choice, pal_dir = 1){
+  
+  plot_bcm <- ggplot() +
+    geom_sf(data = ca_state, fill = "grey") +
+    geom_sf(data = bcm_ccsm, aes(fill = indicator)) +
+    facet_wrap(~wyear_grou) +
+    scale_fill_distiller(palette = palette_choice, direction = pal_dir) +
+    geom_sf(data = soco_bound, color = "green", fill = NA, size = 1.5, alpha = 0.5) +
+    labs(
+      title = sprintf("Average %s: CCSM4 RCP 8.5", indicator_title),
+      fill = indicator_title
+    ) +
+    coord_sf(xlim = c(-124,-122.2), ylim = c(38,38.9)) +
+    theme_map() 
+  
+  return(plot_bcm)
+  
+}
+
+# CWD
+bcm_plot(bcm_ccsm$cwd, "Climatic Water Deficit", "YlOrRd")
+
+# Ppt
+bcm_plot(bcm_ccsm$ppt, "Precipitation", "YlGnBu")
+
+# tmax
+bcm_plot(bcm_ccsm$tmax, "Max Temperature", "YlOrBr")
+
+# tmin
+bcm_plot(bcm_ccsm$tmin, "Min Temperature", "Blues", pal_dir = -1)
+
+```
+
+
+
+```{r, echo = FALSE}
+### Projected fire probability
+
+#### **Data source:** [Park et al. (2021)](https://datadryad.org/stash/dataset/doi:10.25349/D96W4W)
+```
+
+
+## **Community Assets**
+
+### Priority populations
+
+#### **Data source:** [California Climate Investments Priority Populations 3.0 by Census Tract](https://webmaps.arb.ca.gov/PriorityPopulations/)
+
+```{r, echo = FALSE, fig.width=10, fig.height=4}
+
+ggplot() +
+  geom_sf(data = soco_bound) +
+  geom_sf(data = priority_pops, aes(fill = category)) +
+  theme_map() +
+  theme(legend.position = "right")
+
+```
+
+### CalEnviroScreen
+
+#### **Data source:** [CalEnviroScreen 4.0](https://oehha.ca.gov/calenviroscreen/report/calenviroscreen-40)
+
+```{r, echo = FALSE}
+
+# housing buredened
+ggplot() +
+  geom_sf(data = calenviro, aes(fill = HousBurd)) +
+  scale_fill_distiller(palette = "Blues", direction = 1) +
+  labs(
+    title = "Percent housing-burdened low-income households",
+    fill = "Percent"
+  ) +
+  theme_map() +
+  theme(legend.position = "right")
+
+# Poverty
+ggplot() +
+  geom_sf(data = calenviro, aes(fill = Poverty)) +
+  scale_fill_distiller(palette = "Oranges", direction = 1) +
+  labs(
+    title = "Percent of population living below two times the federal poverty level",
+    fill = "Percent"
+  ) +
+  theme_map() +
+  theme(legend.position = "right")
+
+# Elderly over 65
+ggplot() +
+  geom_sf(data = calenviro, aes(fill = Elderly65)) +
+  scale_fill_distiller(palette = "Purples", direction = 1) +
+  labs(
+    title = "2019 ACS population estimates of the percent per census tract of elderly 65 years and older",
+    fill = "Percent"
+  ) +
+  theme_map() +
+  theme(legend.position = "right")
+
+
+
+```
+
