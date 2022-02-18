@@ -1,0 +1,125 @@
+---
+title: "Vital Lands"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# load packages
+library(tidyverse)
+library(sf)
+library(here)
+library(raster)
+library(fasterize)
+```
+
+```{r}
+# source functions
+source(here("R/utils/change_to_raster.R"))
+```
+
+
+```{r}
+##### read in the data #####
+
+# sonoma county
+sonoma_county <- sf::read_sf(here("data/clean/sonoma_county_boundary/sonoma_county_boundary.shp"))
+
+# raster to reclassify polgyons using
+rcl_raster <- raster::raster(here("data/clean/soco_landslide_risk/ls_risk_rcl.tif"))
+
+# path to vital lands data
+vital_lands_path <- here("data/raw/Vital_Lands_Data_Package")
+
+### Vital Lands
+# Vegetation
+hardwood <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Veg_Hardwoods")
+shrubland <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Veg_Shrublands")
+conifers <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Veg_Conifers")
+grasslands <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Veg_Grasslands")
+
+# water
+streams <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Water_Streams")
+riparian_habitat <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Water_Riparian_Habitat")
+wetlands <- read_sf(dsn = vital_lands_path, layer = "VLI_Priority_Water_Wetlands")
+```
+
+```{r}
+
+# function to reclassify Vital Lands categories into numerical ranks
+rank_vli = function(df){
+  
+  ranked_df <- df %>% 
+    dplyr::mutate(ranked_priority = case_when(
+      VLI_Priori == "High Priority" ~ 5,
+      VLI_Priori == "Medium-High Priority" ~ 4,
+      VLI_Priori == "Medium Priority" ~ 3,
+      VLI_Priori == "Medium-Low Priority" ~ 2,
+      VLI_Priori == "Low Priority" ~ 1,
+      VLI_Priori == "Not a Priority" ~ 0))
+  
+  return(ranked_df)
+  
+}
+
+```
+
+Create an empty raster to rasterize polygons with
+
+```{r}
+# Reclassification matrix for empty raster
+rcl_matrix <- c(-Inf, Inf, 0)
+
+# Reclassify the depth layer to make it an empty raster
+empty_raster <- reclassify(rcl_raster, rcl= rcl_matrix)
+
+# transofrm sonoma county shappeifle for mapping
+soco_crs <- st_transform(sonoma_county, crs(empty_raster))
+
+```
+
+```{r}
+
+# function to reclassify and rasterize the polygon
+vli_rcl_raster = function(df){
+  
+  df <- rank_vli(df) 
+  now_raster <- change_to_raster(chosen_polygon = df, empty_raster = empty_raster, rank = "ranked_priority")
+  
+  return(now_raster)
+  
+}
+```
+
+
+# Terrestrial Ecosystems
+
+```{r}
+#### Rasterize ####
+
+# Priority Vegetation
+shrubland_raster <- vli_rcl_raster(shrubland)
+hardwood_raster <- vli_rcl_raster(hardwood) 
+conifers_raster <- vli_rcl_raster(conifers)
+grasslands_raster <- vli_rcl_raster(grasslands)
+```
+
+```{r}
+priority_veg <- shrubland_raster + hardwood_raster + conifers_raster + grasslands_raster
+
+pal <- colorRampPalette(c("white", "orange", "red"))
+
+plot(priority_veg, col = pal(10))
+plot(soco_crs, add = TRUE, col = NA)
+```
+
+
+```{r}
+ggplot() +
+  geom_sf(data = sonoma_county) +
+  geom_sf(data = streams, aes(fill = VLI_Priori, color = VLI_Priori))
+```
+# Aquatic ecosystems

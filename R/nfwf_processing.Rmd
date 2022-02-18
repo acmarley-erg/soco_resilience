@@ -1,0 +1,125 @@
+---
+title: "NFWF Resilienc Method"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# load packages
+library(tidyverse)
+library(sf)
+library(here)
+library(ggthemes)
+library(raster)
+```
+
+```{r}
+# source functions
+source(here("R/utils/change_to_raster.R"))
+```
+
+
+```{r}
+### read in data ###
+
+# administrative boundaries
+soco_bound <- read_sf(here("data/clean/sonoma_county_boundary/sonoma_county_boundary.shp"))
+
+# Vital lands
+croplands <- read_sf(here("data/raw/Vital_Lands_Data_Package/VLI_Priority_Ag_Croplands.shp"))
+grazinglands <- read_sf(here("data/raw/Vital_Lands_Data_Package/VLI_Priority_Ag_Grazing_Land.shp"))
+
+# Hazards
+ag_ls_risk <- raster(here("data/clean/vulnerability_shps/agriculture/ag_landslide_risk.tif"))
+```
+
+Create an empty raster to rasterize polygons with
+
+```{r}
+# Reclassification matrix for empty raster
+rcl_matrix <- c(-Inf, Inf, 0)
+
+# Reclassify the depth layer to make it an empty raster
+empty_raster <- reclassify(ag_ls_risk, rcl= rcl_matrix)
+
+```
+
+```{r}
+soco_crs <- st_transform(soco_bound, crs(empty_raster))
+```
+
+
+```{r, echo = FALSE}
+### Grazing land ###
+
+# Reclassify 
+grazinglands <- grazinglands %>% 
+  mutate(vli_num = case_when(
+    VLI_Priori == "Not a Priority" ~ 1,
+    VLI_Priori == "Low Priority"  ~ 1, 
+    VLI_Priori == "Medium-Low Priority" ~ 2,
+    VLI_Priori == "Medium Priority" ~ 3,
+    VLI_Priori == "Medium-High Priority" ~ 4,
+    VLI_Priori ==  "High Priority"  ~ 5,
+  ))
+
+# convert to raster
+grazinglands_raster <- change_to_raster(grazinglands, empty_raster, "vli_num")
+```
+
+```{r}
+### croplands ###
+croplands <- croplands %>% 
+  mutate(vli_num = case_when(
+    VLI_Priori == "Lower Priority" ~ 1,
+    VLI_Priori ==  "Higher Priority"  ~ 5,
+  ))
+
+# convert to raster
+croplands_raster <- change_to_raster(croplands, empty_raster, "vli_num")
+
+```
+
+
+```{r}
+# reclassify landslide raster on a scale of 1 to 5 and add with grazinglands raster
+rnk_5_ls <- round(ag_ls_risk/2)
+ag_nd_ls <- grazinglands_raster + croplands_raster + rnk_5_ls
+```
+
+```{r}
+# make 0 NAs for plotting
+crop_na <- croplands_raster
+crop_na[crop_na == 0] <- NA
+
+graze_na <- grazinglands_raster
+graze_na[graze_na == 0] <- NA
+```
+
+
+```{r}
+
+colfunc<-colorRampPalette(c("royalblue", "springgreen","yellow","red"))
+
+# visualize
+
+# Grazing lands
+plot(graze_na, col=(colfunc(5)))
+plot(soco_crs, add = TRUE, col = NA)
+
+# Crop lands
+plot(crop_na, col=(colfunc(5)))
+plot(soco_crs, add = TRUE, col = NA)
+
+# landslide
+plot(rnk_5_ls, col=(colfunc(6)))
+plot(soco_crs, add = TRUE, col = NA)
+
+# Grazing lands + landslide
+plot(ag_nd_ls, col=(colfunc(10)))
+plot(soco_crs, add = TRUE, col = NA)
+```
+

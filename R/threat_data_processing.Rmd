@@ -13,7 +13,14 @@ library(tidyverse)
 library(sf)
 library(here)
 library(raster)
+library(fasterize)
 ```
+
+```{r}
+# source functions
+source(here("R/utils/change_to_raster.R"))
+```
+
 
 This Rmarkdown is for any data cleaning or joining necessary for the threat index variables.
 
@@ -26,6 +33,16 @@ sonoma_county <- sf::read_sf(here("data/clean/sonoma_county_boundary/sonoma_coun
 # Sonoma Wildfire Hazard Index
 raw_fire_hazard <- raster::raster(here("data/raw/sc_wildfire_hazard_02.23.21/HAZARD_V5_96FT_CLASSIFIED.tif"))
 
+# SLR 75 cm
+slr_75cm <- read_sf(here("data/raw/sonoma_flooding_slr075/flooding/v2.2/sonoma_fldhazd_slr075_w000.shp"))
+bdb_slr_75cm <- read_sf(here("data/raw/sonoma_flooding_slr075/flooding/v2.0/sonoma_fldhazd_slr075_w000.shp"))
+sfb_slr_75cm <- read_sf(here("data/raw/sonoma_flooding_slr075/flooding/v2.1/sfb_fldhazd_slr075_w000.shp"))
+
+# SLR 75 cm + 100 year storm
+slr_75cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr075/flooding/v2.2/sonoma_fldhazd_slr075_w100.shp"))
+bdb_slr_75cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr075/flooding/v2.0/sonoma_fldhazd_slr075_w100.shp"))
+sfb_slr_75cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr075/flooding/v2.1/sfb_fldhazd_slr075_w100.shp"))
+
 # SLR 200 cm
 slr_200cm <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.2/sonoma_fldhazd_slr200_w000.shp"))
 bdb_slr_200cm <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.0/sonoma_fldhazd_slr200_w000.shp"))
@@ -35,6 +52,12 @@ sfb_slr_200cm <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.1/sfb
 slr_200cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.2/sonoma_fldhazd_slr200_w100.shp"))
 bdb_slr_200cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.0/sonoma_fldhazd_slr200_w100.shp"))
 sfb_slr_200cm_100yr <- read_sf(here("data/raw/sonoma_flooding_slr200/flooding/v2.1/sfb_fldhazd_slr200_w100.shp"))
+
+# Landslide susceptibility
+ca_landslide <- raster::raster(here("data/raw/ca_landslide_susceptibility_20181001/ms58_ls_susceptibility_20181001.tif"))
+
+# Santa Rosa UHII
+santa_rosa_uhi <- read_sf(here("data/raw/santa_rosa_uhii/Santa_Rosa_UHII.shp"))
 ```
 
 Create an empty raster to rasterize polygons with
@@ -95,6 +118,12 @@ write_sf(all_fld_200cm, here("data/clean/fldhazd_slr200_w000/all_fldhazd_slr200_
 all_fld_200cm_100yr <- combine_slr(slr_200cm_100yr, bdb_slr_200cm_100yr, sfb_slr_200cm_100yr, sonoma_county)
 write_sf(all_fld_200cm_100yr, here("data/clean/fldhazd_slr200_w100/all_fldhazd_slr200_w100.shp"))
 
+all_fld_75cm <- combine_slr(slr_75cm, bdb_slr_75cm, sfb_slr_75cm, sonoma_county)
+write_sf(all_fld_75cm, here("data/clean/fldhazd_slr75_w000/all_fldhazd_slr75_w000.shp"))
+
+all_fld_75cm_100yr <- combine_slr(slr_75cm_100yr, bdb_slr_75cm_100yr, sfb_slr_75cm_100yr, sonoma_county)
+write_sf(all_fld_75cm_100yr, here("data/clean/fldhazd_slr75_w100/all_fldhazd_slr75_w100.shp"))
+
 ```
 
 
@@ -119,18 +148,6 @@ ggplot() +
 ### Rasterize the polygons
 
 ```{r}
-
-# function to turn polygons into rasters
-change_to_raster = function(chosen_polygon, empty_raster, rank){
-  
-  polygon_crs <- st_transform(chosen_polygon, st_crs(empty_raster))
-  
-  final_raster <- rasterize(polygon_crs, empty_raster, field = rank, background = 0)
-  
-  return(final_raster)
-  
-}
-
 slr_200cm_raster <- change_to_raster(all_fld_200cm, empty_raster, rank = 2)
 slr_200cm_100yr_raster <- change_to_raster(slr_200cm_100yr_only, empty_raster, rank = 1)
 
@@ -138,5 +155,46 @@ slr_200cm_100yr_raster <- change_to_raster(slr_200cm_100yr_only, empty_raster, r
 slr_raster <- slr_200cm_raster + slr_200cm_100yr_raster
 plot(slr_raster)
 
+```
+
+# Landslides
+
+```{r}
+# just get sonoma county landslide risk
+soco_ls_crs <- st_transform(sonoma_county, st_crs(ca_landslide)) # reproject the sonoma county shapefile to the landslide crs
+ca_ls_crop <- raster::crop(ca_landslide, soco_ls_crs) # crop the raster to the extent of sonoma county boundary
+soco_landslide <- raster::mask(x = ca_ls_crop, mask = soco_ls_crs) # mask the raster to sonoma county boundar
+writeRaster(soco_landslide, here("data/clean/soco_landslide_risk/ls_risk.tif")) # save new raster
+
+plot(soco_landslide)
+
+```
+
+```{r}
+# reclassify the ranks to be 1-5 instead of 1-10
+ls_rcl_matrix <- c(-1, 0, 0,
+                   0, 2, 1,
+                   2, 4, 2,
+                   4, 6, 3,
+                   6, 8, 4,
+                   8, 10, 5) # reclassification matrix
+soco_landslide_rcl <- reclassify(soco_landslide, rcl= ls_rcl_matrix) # reclassify raster
+writeRaster(soco_landslide_rcl, here("data/clean/soco_landslide_risk/ls_risk_rcl.tif"), overwrite = TRUE) # save reclassified raster
+
+plot(soco_landslide_rcl)
+```
+
+# Urban Heat Island Index
+
+```{r}
+# visualize the data 
+
+ggplot() +
+  geom_sf(data = sonoma_county) +
+  geom_sf(data = santa_rosa_uhi, aes(fill = DegHourDay)) +
+  scale_fill_continuous(type = "viridis")
+
+hist(santa_rosa_uhi$DegHourDay)
+  
 ```
 
