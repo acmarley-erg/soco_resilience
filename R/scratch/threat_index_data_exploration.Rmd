@@ -15,16 +15,17 @@ library(here)
 library(raster)
 ```
 
-This RMarkdown is an exploration of the data used to create the threat index. The data sources used are listed below:
+This RMarkdown is an exploration of the data used to create the threat index. 
 
+Data sources used:
 - **Wildfire Hazard Index:** https://tukmangeospatial.egnyte.com/dl/BKVGCGmqCq
 - **SLR and storm surge:** https://ourcoastourfuture.org/hazard-map/
+- **Landslide susceptibility:** https://gis.conservation.ca.gov/portal/home/item.html?id=87289025c11d4ba7ae65f0f472bf7c2d
 
 ```{r, echo=FALSE}
 ##### read in the data #####
 fire_hazard <- raster::raster(here("data/clean/fire_hazard_index.tif"))
-slr_200cm <- read_sf(here("data/clean/fldhazd_slr200_w000/all_fldhazd_slr200_w000.shp"))
-slr_200cm_100yr <- read_sf(here("data/clean/fldhazd_slr200_w100/all_fldhazd_slr200_w100.shp"))
+landslide_risk <- raster::raster(here("data/clean/soco_landslide_risk/ls_risk_rcl.tif"))
 
 ```
 
@@ -39,24 +40,38 @@ ggplot() +
   coord_sf(xlim = c(-124,-122), ylim = c(38,39))
 ```
 
+```{r}
+# raster resampler in case this changes
+raster_resample <- landslide_risk
+resample_crs <- crs(landslide_risk)
+```
+
+
 ### Wildfire Hazard Index
 - Range: 1-5 (Low to Extreme)
 
 ```{r}
 # visualize
 plot(fire_hazard)
+
+# resample 
+fire_crs <- projectRaster(fire_hazard, crs = resample_crs)
+fire_rsmpl <- raster::resample(x = fire_crs, y = landslide_risk, method = "ngb")
 ```
 
-### SLR
-- 200 cm and no storm surge
-- 200 cm and 100 year storm
+
+### Combined indices
 
 ```{r}
-ggplot() +
-  geom_sf(data = ca_state, fill = "white") +
-  geom_sf(data = sonoma_county, fill = "light grey") +
-  geom_sf(data = slr_200cm_100yr, fill = "blue", color = "blue") +
-  geom_sf(data = slr_200cm, fill = "light blue", color = "light blue") +
-  coord_sf(xlim = c(-123.8,-122), ylim = c(38,38.9))
+threat_index <- fire_rsmpl + landslide_risk
+
+threat_index_df <- as.data.frame(threat_index, xy = TRUE)
+
+soco_crs <- st_transform(sonoma_county, resample_crs)
+
+pal <- colorRampPalette(c("white", "yellow", "red"))
+
+plot(threat_index, col = pal(10))
+plot(soco_crs, add = TRUE, col = NA)
 ```
 
