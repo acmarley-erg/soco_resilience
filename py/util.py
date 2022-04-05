@@ -58,3 +58,47 @@ def zone_intersect(ecoregions: gpd.GeoDataFrame, intersect_layer: gpd.GeoDataFra
     zones[intersect_name] = zones['geometry'].area / 43560
     zones = zones.drop('geometry', axis = 1)
     return zones
+
+
+def simplify_ecoregions(ecoregions: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Simplify the ecoregion dataset 
+
+    Args:
+        ecoregions (gpd.GeoDataFrame): shapefile of the ecoregions
+
+    Returns:
+        gpd.GeoDataFram: The ecoregions geodataframe with a new simplified ecoregions column and the acres of the ecoregion
+    """
+    
+    ecoregions['l4_simple'] = np.where(ecoregions['US_L4NAME'].isin({'Point Reyes/Farallon Islands', 'Marin Hills'}), 'Bodega Coastal Hills', ecoregions['US_L4NAME'])
+    ecoregions_simp = ecoregions[['l4_simple', 'geometry']]
+    ecoregions_simp = ecoregions_simp.dissolve(by = 'l4_simple', aggfunc='sum').reset_index()
+    ecoregions_simp['ecoregion_acres'] = ecoregions_simp['geometry'].area / 43560
+    return ecoregions_simp
+
+
+def longname_landuse(landuse: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+
+    # dissolve landuse by designation
+    landuse_simp = landuse.dissolve(by="DESIGNATIO").reset_index()
+    landuse_simp = landuse_simp[["DESIGNATIO", "geometry"]]
+    
+    # longname of the landuse
+    name_map = {
+    "DA": "Diverse Agriculture",
+    "GC": "General Commercial",
+    'GI': "General Industrial",
+    'LC': "Limited Commercial",
+    'LEA': "Land Extensive Agriculture",
+    'LI': "Limited Industrial",
+    'LIA': "Land Intensive Agriculture",
+    'PQP': "Public / Quasi-public",
+    'RR': "Rural Residential",
+    'RRD': "Resources and Rural Development",
+    'RVSC': "Recreation and Visitor Serving Commercial",
+    'UR': "Urban Residential"
+    }
+    
+    landuse_simp['landuse'] = landuse_simp["DESIGNATIO"].apply(lambda val: name_map[val])
+    landuse_simp = landuse_simp[['landuse', 'geometry']]
+    return landuse_simp
