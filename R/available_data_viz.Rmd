@@ -134,25 +134,7 @@ ggplot() +
 bcm_ccsm <- bcm_data %>% 
   filter(gcm == "CCSM4_rcp85") 
 
-# bcm plot
-bcm_plot = function(indicator, indicator_title, palette_choice, pal_dir = 1){
-  
-  plot_bcm <- ggplot() +
-    geom_sf(data = ca_state, fill = "grey") +
-    geom_sf(data = bcm_ccsm, aes(fill = indicator)) +
-    facet_wrap(~wyear_grou) +
-    scale_fill_distiller(palette = palette_choice, direction = pal_dir) +
-    geom_sf(data = soco_bound, color = "green", fill = NA, size = 1.5, alpha = 0.5) +
-    labs(
-      title = sprintf("Average %s: CCSM4 RCP 8.5", indicator_title),
-      fill = indicator_title
-    ) +
-    coord_sf(xlim = c(-124,-122.2), ylim = c(38,38.9)) +
-    theme_map() 
-  
-  return(plot_bcm)
-  
-}
+source(here("R/utils/bcm_plot.R"))
 
 # CWD
 bcm_plot(bcm_ccsm$cwd, "Climatic Water Deficit", "YlOrRd")
