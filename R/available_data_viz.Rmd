@@ -85,11 +85,13 @@ floodplains <- flood_awareness %>%
 
 ```{r, echo = FALSE}
 # get basemap
-register_google("AIzaSyD3zBmW_-hDxcZuTDJ_1NRXLgkcVMHouCU")
+register_google()
 soco_basemap <- get_map(location=c(lon = -122.89, lat = 38.53), zoom=9, maptype = 'terrain-background', source = 'stamen')
 ```
 
 ```{r, echo = FALSE}
+
+# terrain basemap
 flds <- ggmap(soco_basemap) + 
   geom_sf(data = soco_bound, fill = NA, inherit.aes = FALSE, size = 1.5, color = "black") +
   geom_sf(data = floodplains, color = "dark blue", fill = "dark blue", inherit.aes = FALSE) +
@@ -99,7 +101,20 @@ flds <- ggmap(soco_basemap) +
   theme_map()
 flds
 
-ggsave(filename = "flood_zones_terrain.png", plot = flds, path = here("output/maps/"), dpi = 350)
+# basic shapefile map
+
+flds <- ggplot() + 
+  geom_sf(data = ca_state, fill = "light grey") +
+  geom_sf(data = soco_bound, color = "black") +
+  geom_sf(data = flood_awareness, color = "dark blue", fill = "dark blue") +
+  geom_sf(data = fema_100yr, color = NA, fill = "light blue") +
+  geom_sf(data = cities, color = NA, fill = "light grey") +
+  geom_sf_text(data = city_center, aes(label = CITY_NAME), size = 3, fontface =2)  +
+  coord_sf(xlim = c(-123.55,-122.3), ylim = c(38.09,38.86)) +
+  theme_map()
+flds
+
+ggsave(filename = "flood_zones.png", plot = flds, path = here("output/maps/"), dpi = 350)
 ```
 
 ### Landslide risk
