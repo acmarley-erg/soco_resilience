@@ -13,6 +13,7 @@ library(sf)
 library(here)
 library(ggthemes)
 library(raster)
+library(ggmap)
 ```
 
 ```{r, include = FALSE}
@@ -25,6 +26,8 @@ ca_state <- sf::read_sf(here("data/clean/ca_state_boundary/ca_state_boundary.shp
 
 ## Hazards
 flood_awareness <- read_sf(here("data/clean/flood_awareness_areas/flood_awareness_areas.shp"))
+fema_100yr <- read_sf(here("data/raw/FEMA_100yr_flood/fema_100yr.shp")) %>% 
+  st_transform(crs = st_crs(flood_awareness))
 landslide_risk <- raster(here("data/clean/soco_landslide_risk/ls_risk.tif"))
 bcm_data <- read_sf(here("data/clean/soco_bcm/soco_bcm_full_ws.shp"))
 fire_risk <- read_sf(here("data/clean/soco_wildfire_risk_index/Wildfire_Risk_Index.shp"))
@@ -35,7 +38,14 @@ slr_200cm <- read_sf(here("data/clean/fldhazd_slr200_w000/all_fldhazd_slr200_w00
 ## Comunity assets
 priority_pops <- read_sf(here("data/clean/soco_priority_pops_ces3_2021/soco_priority_pop.shp"))
 calenviro <- read_sf(here("data/clean/soco_calenviroscreen_4.0/soco_calenviro.shp"))
+cities <- read_sf(here("data/raw/soco_boundaries/City_Limits.shp"))
 ```
+
+```{r, echo = FALSE}
+# get city centroids for mapping
+city_center <- st_centroid(cities)
+```
+
 
 #### **Data source:** []()
 
@@ -64,17 +74,32 @@ ggplot() +
 
 ### Floodplains
 
-#### **Data source:** [Vital Lands](https://sonomaopenspace.egnyte.com/fl/Io8VY7hySY#folder-link/Flood_Awareness_Areas)
+#### **Data source:** [Vital Lands](https://sonomaopenspace.egnyte.com/fl/Io8VY7hySY#folder-link/Flood_Awareness_Areas) & [FEMA 100 yr flood](https://sonomacounty.maps.arcgis.com/home/item.html?id=b85bf0df7ae94d928063d8bf0a38814d)
 
 ```{r, echo = FALSE}
 # flood zones
 floodplains <- flood_awareness %>% 
   filter(CLASS %in% c("Russian River Floodplain", "Mark West Creek Floodplain", "Floodplain"))
 
-ggplot() +
-  geom_sf(data = soco_bound, fill = "lightgrey") +
-  geom_sf(data = floodplains, fill = "blue", color = "blue") +
+```
+
+```{r, echo = FALSE}
+# get basemap
+register_google("AIzaSyD3zBmW_-hDxcZuTDJ_1NRXLgkcVMHouCU")
+soco_basemap <- get_map(location=c(lon = -122.89, lat = 38.53), zoom=9, maptype = 'terrain-background', source = 'stamen')
+```
+
+```{r, echo = FALSE}
+flds <- ggmap(soco_basemap) + 
+  geom_sf(data = soco_bound, fill = NA, inherit.aes = FALSE, size = 1.5, color = "black") +
+  geom_sf(data = floodplains, color = "dark blue", fill = "dark blue", inherit.aes = FALSE) +
+  geom_sf(data = fema_100yr, color = "light blue", fill = "light blue", inherit.aes = FALSE) +
+  geom_sf_text(data = city_center, aes(label = CITY_NAME), size = 3, inherit.aes = FALSE, fontface =2)  +
+  coord_sf(xlim = c(-123.55,-122.3), ylim = c(38.09,38.86)) +
   theme_map()
+flds
+
+ggsave(filename = "flood_zones_terrain.png", plot = flds, path = here("output/maps/"), dpi = 350)
 ```
 
 ### Landslide risk
