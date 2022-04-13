@@ -17,6 +17,9 @@ def calc_avs(fp: str) -> pd.DataFrame:
     # read in the csv file
     sw = pd.read_csv(fp)
 
+    # group by water year and sum to annual values for indicators that need total annual sum and then find annual average for temp
+    sw = sw.groupby('wyear').agg({'stor':'sum', 'rch':'sum', 'run':'sum', 'aet':'sum', 'cwd':'sum', 'tmax':'mean', 'tmin':'mean', 'ppt':'sum', 'pet':'sum'}).reset_index()
+
     # Create conditions for groupin water years
     conditions = [
     (sw["wyear"] < 1951),
