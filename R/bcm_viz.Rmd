@@ -16,6 +16,7 @@ library(here)
 library(ggthemes)
 library(raster)
 library(RColorBrewer)
+library(measurements)
 ```
 
 ```{r, include=FALSE}
@@ -28,6 +29,9 @@ ca_state <- sf::read_sf(here("data/clean/ca_state_boundary/ca_state_boundary.shp
 # BCM projected data
 bcm_proj_data <- read_sf(here("data/clean/soco_bcm/soco_bcm_full_ws.shp"))
 bcm_hist <- read_csv(here("data/clean/soco_bcm/bcm_hist_base.csv"))
+
+# ecoregions
+ecoregion <- read_sf(here("data/clean/soco_ecoregion_l4/soco_ecoregion_l4_simp.shp"))
 ```
 
 ```{r, include=FALSE}
@@ -39,42 +43,51 @@ source(here("R/utils/bcm_plot.R"))
 # tidy historical data
 bcm_hist_tidy <- bcm_hist %>% 
   dplyr::select(-"...1", -gcm, -wyear_group) %>% 
+  # convert to imperial
+    mutate( stor = conv_unit(stor,"mm", "inch"),
+          rch = conv_unit(rch,"mm", "inch"),
+          run = conv_unit(run,"mm", "inch"),
+          aet = conv_unit(aet,"mm", "inch"),
+          cwd = conv_unit(cwd,"mm", "inch"),
+          tmax = conv_unit(tmax,"C", "F"),
+          tmin = conv_unit(tmin,"C", "F"),
+          ppt = conv_unit(ppt,"mm", "inch"),
+          pet = conv_unit(pet,"mm", "inch")) %>% 
   pivot_longer(c("stor", "rch", "run", "aet", "cwd", "tmax", "tmin", "ppt", "pet"), names_to = "climate_variables", values_to = "hist_values") %>% 
   mutate(watershed_num = as.character(watershed_num))
 ```
 
 ```{r, include=FALSE}
-# make historical data into a shapefile
-soco_ws <- bcm_proj_data %>% 
-  dplyr::select(watershed_) %>% 
-  rename(watershed_num = watershed_) %>% 
-  mutate(watershed_num = as.numeric(watershed_num))
-
-hist_shp <- dplyr::left_join(soco_ws, bcm_hist, by = "watershed_num" ) %>% 
-  st_as_sf() %>% 
-  dplyr::select(-"...1") %>% 
-  relocate(geometry, .after = gcm) %>% 
-   rename(wyear_grou = wyear_group) 
-
-bcm_proj <- bcm_proj_data %>% 
-  # filter to just the gcms we're looking at
-  filter(gcm %in% c("MIROC_rcp85", "CNRM_rcp85")) %>% 
+# clean up the bcm data
+bcm_proj_metric <- bcm_proj_data %>% 
   dplyr::select(-Area_acre) %>% 
-  rename(watershed_num = watershed_) %>% 
-  mutate(watershed_num = as.numeric(watershed_num))
+  dplyr::rename(watershed_num = watershed_) %>% 
+  dplyr::mutate(watershed_num = as.character(watershed_num)) %>% 
+  dplyr::rename(wyear_group = wyear_grou) %>% 
+  dplyr::mutate(hst_39 = ifelse(gcm == "HST" & wyear_group == "2010-2039", 1, 0)) %>% 
+  dplyr::filter(hst_39 != 1) %>% 
+  dplyr::select(-hst_39)
 
-bcm_proj_hist_wide <- rbind(bcm_proj, hist_shp)
+# convert to imperial units
+bcm_proj <- bcm_proj_metric %>% 
+  mutate( stor = conv_unit(stor,"mm", "inch"),
+          rch = conv_unit(rch,"mm", "inch"),
+          run = conv_unit(run,"mm", "inch"),
+          aet = conv_unit(aet,"mm", "inch"),
+          cwd = conv_unit(cwd,"mm", "inch"),
+          tmax = conv_unit(tmax,"C", "F"),
+          tmin = conv_unit(tmin,"C", "F"),
+          ppt = conv_unit(ppt,"mm", "inch"),
+          pet = conv_unit(pet,"mm", "inch"))
 ```
 
 
 ```{r, include=FALSE}
 # put historical change and future projected conditions into a tidy format
-bcm_tidy <- bcm_proj_data %>% 
-  # filter to just the gcms we're looking at
-  filter(gcm %in% c("MIROC_rcp85", "CNRM_rcp85")) %>% 
-  rename(watershed_num = watershed_) %>% 
+bcm_tidy <- bcm_proj %>% 
   # convert to tidy format
-  pivot_longer(c("stor", "rch", "run", "aet", "cwd", "tmax", "tmin", "ppt", "pet"), names_to = "climate_variables", values_to = "values") %>% 
+  pivot_longer(c("stor", "rch", "run", "aet", "cwd", "tmax", "tmin", "ppt", "pet"),
+               names_to = "climate_variables", values_to = "values") %>% 
   left_join(bcm_hist_tidy, by=c("watershed_num", "climate_variables")) %>% 
   mutate(change_from_hist = values - hist_values) %>% 
   st_as_sf()
@@ -82,42 +95,133 @@ bcm_tidy <- bcm_proj_data %>%
 
 ```{r, include=FALSE}
 # filter to just the hot and dry scenario
-bcm_cnrm <- bcm_proj_hist_wide %>% 
+bcm_cnrm <- bcm_proj %>% 
   filter(gcm %in% c("CNRM_rcp85", "HST"))
 
 # filter to just the hot and dry scenario
-bcm_miroc <- bcm_proj_hist_wide %>% 
+bcm_miroc <- bcm_proj %>% 
   filter(gcm %in% c("MIROC_rcp85", "HST"))
 ```
+
+```{r}
+# function to calculate what are the changes compared to the historical baseline for both climate projections?
+calc_chng_frm_hist = function(climate_variable, wy_group) {
+  
+  bcm_eoc <- bcm_tidy %>% 
+    filter(climate_variables == climate_variable) %>% 
+    filter(wyear_group == wy_group) %>% 
+    group_by(gcm) %>% 
+    mutate(min_ind = min(change_from_hist)) %>% 
+    mutate(max_ind = max(change_from_hist)) %>% 
+    mutate(av_ind = mean(change_from_hist)) %>% 
+    mutate(range = paste0(round(av_ind, 1), " (", round(min_ind, 1), "-", round(max_ind, 1), ")"))
+  
+  return(bcm_eoc)
+  
+}
+```
+
 
 #### **Max temperature**
 
 ```{r, echo = FALSE}
-bcm_plot(bcm_miroc, bcm_miroc$tmax, "Max Temperature (°C)", "MIROC RCP 8.5 (hot, low rainfall)", "YlOrBr", col_limits = c(16,29))
-bcm_plot(bcm_cnrm, bcm_cnrm$tmax, "Max Temperature (°C)", "CNRM RCP 8.5 (warm, high rainfall)", "YlOrBr", col_limits = c(16,29))
+bcm_plot(bcm_miroc, bcm_miroc$tmax, "Temperature (°F)", "MIROC RCP 8.5 (hot, low rainfall)", "YlOrBr", col_limits = c(60, 85))
+bcm_plot(bcm_cnrm, bcm_cnrm$tmax, "Temperature (°F)", "CNRM RCP 8.5 (warm, high rainfall)", "YlOrBr", col_limits = c(60, 85))
+```
+```{r, echo = FALSE}
+# check how much average chnnge
+max_temp_eoc <- calc_chng_frm_hist("tmax", "2070-2099")
+max_temp_2040 <- calc_chng_frm_hist("tmax", "2010-2039")
+
+max_temp_2040 %>% 
+  filter(gcm == "CNRM_rcp85") %>% 
+  ggplot() +
+  geom_sf(aes(fill = change_from_hist)) +
+  scale_fill_distiller(palette = "YlOrBr", direction = 1) +
+  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
+  labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
+
+max_temp_2040 %>% 
+  filter(gcm == "MIROC_rcp85") %>% 
+  ggplot() +
+  geom_sf(aes(fill = change_from_hist)) +
+  scale_fill_distiller(palette = "YlOrBr", direction = 1) +
+  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
+  labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
 ```
 
 
 #### **Min temperature**
 
 ```{r, echo = FALSE}
-bcm_plot(bcm_miroc, bcm_miroc$tmin, "Min Temperature (°C)", "MIROC RCP 8.5 (hot, low rainfall)", "Blues", pal_dir = -1, col_limits = c(6,14))
-bcm_plot(bcm_cnrm, bcm_cnrm$tmin, "Min Temperature (°C)", "CNRM RCP 8.5 (warm, high rainfall)", "Blues", pal_dir = -1, col_limits = c(6,14))
+bcm_plot(bcm_miroc, bcm_miroc$tmin, "Temperature (°F)", "MIROC RCP 8.5 (hot, low rainfall)", "Blues", pal_dir = -1, col_limits = c(40, 60))
+bcm_plot(bcm_cnrm, bcm_cnrm$tmin, "Temperature (°F)", "CNRM RCP 8.5 (warm, high rainfall)", "Blues", pal_dir = -1, col_limits = c(40, 60))
 ```
+```{r}
+# check how much average chnnge
+min_temp_eoc <- calc_chng_frm_hist("tmin", "2070-2099")
+min_temp_2040 <- calc_chng_frm_hist("tmin", "2010-2039")
+
+min_temp_2040 %>% 
+  filter(gcm == "CNRM_rcp85") %>% 
+  ggplot() +
+  geom_sf(aes(fill = change_from_hist),color = NA) +
+  scale_fill_distiller(palette = "Blues", direction = -1) +
+  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
+  labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
+
+min_temp_2040 %>% 
+  filter(gcm == "MIROC_rcp85") %>% 
+  ggplot() +
+  geom_sf(aes(fill = change_from_hist),color = NA) +
+  scale_fill_distiller(palette = "Blues", direction = -1) +
+  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
+  labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
+```
+
 
 #### **Precipitation**
 
 ```{r, echo = FALSE}
-bcm_plot(bcm_miroc, bcm_miroc$ppt, "Precipitation", "MIROC RCP 8.5 (hot, low rainfall)", "YlGnBu", col_limits = c(34,198))
-bcm_plot(bcm_cnrm, bcm_cnrm$ppt, "Precipitation", "CNRM RCP 8.5 (warm, high rainfall)", "YlGnBu", col_limits = c(34,198))
+bcm_proj %>% 
+  filter(gcm != "HST") %>% 
+  ggplot(aes(x = ppt)) +
+  geom_histogram(aes(fill = gcm)) +
+  scale_y_continuous(expand = c(0,0))
+
+```
+
+```{r, echo = FALSE}
+# What are the changes compared to the historical baseline at the end of the century for both climate projections?
+bcm_precip_eoc <- calc_chng_frm_hist("ppt", "2070-2099")
+
+bcm_precip_eoc %>% 
+  filter(gcm == "CNRM_rcp85") %>% 
+  ggplot() +
+  geom_sf(aes(fill = change_from_hist)) +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
+
+bcm_precip_eoc %>% 
+  filter(gcm == "MIROC_rcp85") %>% 
+  ggplot() +
+  geom_sf(aes(fill = change_from_hist)) +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
+```
+
+
+```{r, echo = FALSE}
+bcm_plot(bcm_miroc, bcm_miroc$ppt, "Precipitation (in)", "MIROC RCP 8.5 (hot, low rainfall)", "YlGnBu", col_limits = c(16, 94))
+bcm_plot(bcm_cnrm, bcm_cnrm$ppt, "Precipitation (in)", "CNRM RCP 8.5 (warm, high rainfall)", "YlGnBu", col_limits = c(16, 94))
 ```
 
 
 #### **Climatic Water Deficit**
 
 ```{r, echo = FALSE}
-bcm_plot(bcm_miroc, bcm_miroc$cwd, "Climatic Water Deficit", "MIROC RCP 8.5 (hot, low rainfall)", "YlOrRd", col_limits = c(43,83))
-bcm_plot(bcm_cnrm, bcm_cnrm$cwd, "Climatic Water Deficit", "CNRM RCP 8.5 (warm, high rainfall)", "YlOrRd", col_limits = c(43,83))
+bcm_plot(bcm_miroc, bcm_miroc$cwd, "Climatic Water Deficit (in)", "MIROC RCP 8.5 (hot, low rainfall)", "YlOrRd", col_limits = c(20, 40))
+bcm_plot(bcm_cnrm, bcm_cnrm$cwd, "Climatic Water Deficit (in)", "CNRM RCP 8.5 (warm, high rainfall)", "YlOrRd", col_limits = c(20, 40))
 ```
 
 
