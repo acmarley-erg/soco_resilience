@@ -14,7 +14,7 @@
 #'
 #' @examples bcm_plot(bcm_ccsm, bcm_ccsm$cwd, "Climatic Water Deficit", "YlOrRd")
 
-bcm_plot = function(bcm_data, indicator, indicator_title, gcm_type = "", palette_choice, pal_dir = 1, col_limits, data_form = "wide"){
+bcm_plot = function(bcm_data, indicator, indicator_title, gcm_type = "", palette_choice, pal_dir = 1, data_form = "wide", col_limits){
   
   
   if (data_form == "tidy"){
@@ -25,7 +25,7 @@ bcm_plot = function(bcm_data, indicator, indicator_title, gcm_type = "", palette
     plot_bcm <- ggplot() +
       geom_sf(data = ca_state, fill = "grey") +
       geom_sf(data = bcm_filt, aes(fill = change_from_hist)) +
-      facet_wrap(~wyear_grou) +
+      facet_wrap(~wyear_group) +
       scale_fill_distiller(palette = palette_choice, direction = pal_dir) +
       geom_sf(data = soco_bound, color = "green", fill = NA, size = 1, alpha = 0.5) +
       labs(
@@ -40,17 +40,17 @@ bcm_plot = function(bcm_data, indicator, indicator_title, gcm_type = "", palette
     
     plot_bcm <- ggplot() +
       geom_sf(data = ca_state, fill = "grey") +
-      geom_sf(data = bcm_data, aes(fill = indicator)) +
-      facet_wrap(~wyear_grou) +
+      geom_sf(data = bcm_data, aes(fill = indicator), color = NA) +
+      geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
+      facet_wrap(~wyear_group) +
       scale_fill_distiller(palette = palette_choice, direction = pal_dir, limits = col_limits) +
-      geom_sf(data = soco_bound, color = "green", fill = NA, size = 1, alpha = 0.5) +
       labs(
         title = gcm_type,
         fill = indicator_title
       ) +
       coord_sf(xlim = c(-124,-122.2), ylim = c(38,38.9)) +
       theme_map() +
-      theme(legend.position = "bottom")
+      theme(legend.position = "bottom", strip.text = element_text(size=11))
     
   }
   
