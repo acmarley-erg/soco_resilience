@@ -183,6 +183,10 @@ min_temp_2040 %>%
 #### **Precipitation**
 
 ```{r, echo = FALSE}
+bcm_plot(bcm_miroc, bcm_miroc$ppt, "Precipitation (in)", "MIROC RCP 8.5 (hot, low rainfall)", "YlGnBu", col_limits = c(16, 94))
+bcm_plot(bcm_cnrm, bcm_cnrm$ppt, "Precipitation (in)", "CNRM RCP 8.5 (warm, high rainfall)", "YlGnBu", col_limits = c(16, 94))
+```
+```{r, echo = FALSE}
 bcm_proj %>% 
   filter(gcm != "HST") %>% 
   ggplot(aes(x = ppt)) +
@@ -194,26 +198,23 @@ bcm_proj %>%
 ```{r, echo = FALSE}
 # What are the changes compared to the historical baseline at the end of the century for both climate projections?
 bcm_precip_eoc <- calc_chng_frm_hist("ppt", "2070-2099")
+bcm_precip_2040 <- calc_chng_frm_hist("ppt", "2010-2039")
 
 bcm_precip_eoc %>% 
   filter(gcm == "CNRM_rcp85") %>% 
   ggplot() +
-  geom_sf(aes(fill = change_from_hist)) +
+  geom_sf(aes(fill = change_from_hist), color = NA) +
   scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
   labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
 
 bcm_precip_eoc %>% 
   filter(gcm == "MIROC_rcp85") %>% 
   ggplot() +
-  geom_sf(aes(fill = change_from_hist)) +
+  geom_sf(aes(fill = change_from_hist), color = NA) +
   scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
   labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
-```
-
-
-```{r, echo = FALSE}
-bcm_plot(bcm_miroc, bcm_miroc$ppt, "Precipitation (in)", "MIROC RCP 8.5 (hot, low rainfall)", "YlGnBu", col_limits = c(16, 94))
-bcm_plot(bcm_cnrm, bcm_cnrm$ppt, "Precipitation (in)", "CNRM RCP 8.5 (warm, high rainfall)", "YlGnBu", col_limits = c(16, 94))
 ```
 
 
