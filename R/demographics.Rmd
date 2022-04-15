@@ -1,0 +1,71 @@
+---
+title: "Population"
+output: html_document
+date: '2022-04-14'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tigris)
+library(sf)
+library(tidyverse)
+library(tidycensus)
+```
+
+## Get demographics information for Sonoma County from the AMerican Community Survey 2020
+
+```{r}
+Sys.getenv("CENSUS_API_KEY")
+```
+
+```{r}
+# look at variables available in the ACS survey
+v20 <- load_variables(2020, "acs5")
+v20_block <- v20 %>% filter(geography == "block group")
+```
+
+
+```{r}
+# get census population data by census block group
+block_group_dem <- tidycensus::get_acs(geography = "block group",
+                                       state = "California",
+                                       county = "Sonoma",
+                                      variables = c("B01003_001", "B25001_001"),
+                                      year = 2020,
+                                       geometry = TRUE)
+```
+
+```{r}
+# calculate densities
+block_group_dem_clean <- block_group_dem %>% 
+  mutate(variable_name = ifelse(variable == "B01003_001", "total_pop", "housing_units")) %>% 
+  mutate(area_block_group = st_area(geometry)) %>% 
+  mutate(density = as.numeric(estimate/area_block_group))
+```
+
+
+```{r}
+# housing density
+block_group_dem_clean %>% 
+  filter(variable_name=="housing_units") %>% 
+  ggplot() +
+  geom_sf(aes(fill = density), color = NA) +
+  scale_fill_viridis_c(option = "magma") +
+  labs(fill = "Housing Density\n(houses/m^2)")
+
+# population density
+block_group_dem_clean %>% 
+  filter(variable_name=="total_pop") %>% 
+  ggplot() +
+  geom_sf(aes(fill = density), color = NA) +
+  scale_fill_viridis_c(option = "magma") +
+  labs(fill = "Population Density\n(people/m^2)")
+```
+
+```{r}
+
+```
+
