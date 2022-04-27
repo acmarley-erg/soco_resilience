@@ -13,9 +13,10 @@ library(tigris)
 library(sf)
 library(tidyverse)
 library(tidycensus)
+library(here)
 ```
 
-## Get demographics information for Sonoma County from the AMerican Community Survey 2020
+## Get demographics information for Sonoma County by block group from the AMerican Community Survey 2020
 
 ```{r}
 Sys.getenv("CENSUS_API_KEY")
@@ -39,9 +40,15 @@ block_group_dem <- tidycensus::get_acs(geography = "block group",
 ```
 
 ```{r}
-# calculate densities
+# clean up the shapefile
 block_group_dem_clean <- block_group_dem %>% 
-  mutate(variable_name = ifelse(variable == "B01003_001", "total_pop", "housing_units")) %>% 
+  mutate(variable_name = ifelse(variable == "B01003_001", "total_pop", "housing_units")) 
+
+# write to files
+write_sf(block_group_dem_clean, here("data/clean/soco_demographics/soco_demographics.shp"))
+
+# calculate densities
+block_group_dem_dnes <- block_group_dem_clean %>% 
   mutate(area_block_group = st_area(geometry)) %>% 
   mutate(density = as.numeric(estimate/area_block_group))
 ```
