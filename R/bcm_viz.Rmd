@@ -121,6 +121,35 @@ calc_chng_frm_hist = function(climate_variable, wy_group) {
 }
 ```
 
+```{r}
+#' plot_bcm_change
+#'
+#' @param bcm_data filtered bcm data
+#' @param color_palette color palette for the map
+#' @param legend_limits limits for the legend
+#' @param unit_type unit of measurement 
+#'
+#' @return plot
+#'
+#' @examples plot_bcm_change(max_temp_2040_miroc, "YlOrBr", c(5,7))
+
+plot_bcm_change = function(bcm_data, color_palette, legend_limits, unit_type){
+  
+  bcm_plot <- ggplot() +
+    geom_sf(data = ca_state, color = "grey", fill = "#e2e2e2") +
+    geom_sf(data = bcm_data, aes(fill = change_from_hist), color = NA) +
+    scale_fill_distiller(palette = color_palette, direction = 1, limits = legend_limits) +
+    geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
+    labs(fill = unit_type) +
+    coord_sf(xlim = c(-123.5,-122.2), ylim = c(38.1,38.85)) +
+    theme_map() +
+    theme(panel.background = element_rect(fill = "#add8e6", color = NA))
+  
+  return(bcm_plot)
+  
+}
+```
+
 
 #### **Max temperature**
 
@@ -128,26 +157,20 @@ calc_chng_frm_hist = function(climate_variable, wy_group) {
 bcm_plot(bcm_miroc, bcm_miroc$tmax, "Temperature (°F)", "MIROC RCP 8.5 (hot, low rainfall)", "YlOrBr", col_limits = c(60, 85))
 bcm_plot(bcm_cnrm, bcm_cnrm$tmax, "Temperature (°F)", "CNRM RCP 8.5 (warm, high rainfall)", "YlOrBr", col_limits = c(60, 85))
 ```
+
+Hot and low rainfall -- 2040-2069 change from historical baseline
+
 ```{r, echo = FALSE}
 # check how much average chnnge
-max_temp_eoc <- calc_chng_frm_hist("tmax", "2070-2099")
-max_temp_2040 <- calc_chng_frm_hist("tmax", "2010-2039")
+max_temp_2040_miroc <- calc_chng_frm_hist("tmax", "2040-2069") %>% 
+    filter(gcm == "MIROC_rcp85")
 
-max_temp_2040 %>% 
-  filter(gcm == "CNRM_rcp85") %>% 
-  ggplot() +
-  geom_sf(aes(fill = change_from_hist)) +
-  scale_fill_distiller(palette = "YlOrBr", direction = 1) +
-  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
-  labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
+max_temp_2040_plt <- plot_bcm_change(max_temp_2040_miroc, "YlOrBr", c(5,7), "Temperature (°F)")
+max_temp_2040_plt
 
-max_temp_2040 %>% 
-  filter(gcm == "MIROC_rcp85") %>% 
-  ggplot() +
-  geom_sf(aes(fill = change_from_hist)) +
-  scale_fill_distiller(palette = "YlOrBr", direction = 1) +
-  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
-  labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
+
+ggsave(filename = "bcm_tmax_miroc_2040-2069.png", plot = max_temp_2040_plt, path = here("output/maps/"), dpi = 350)
+
 ```
 
 
@@ -159,24 +182,14 @@ bcm_plot(bcm_cnrm, bcm_cnrm$tmin, "Temperature (°F)", "CNRM RCP 8.5 (warm, high
 ```
 ```{r}
 # check how much average chnnge
-min_temp_eoc <- calc_chng_frm_hist("tmin", "2070-2099")
-min_temp_2040 <- calc_chng_frm_hist("tmin", "2010-2039")
+min_temp_2040_miroc <- calc_chng_frm_hist("tmin", "2040-2069") %>% 
+    filter(gcm == "MIROC_rcp85")
 
-min_temp_2040 %>% 
-  filter(gcm == "CNRM_rcp85") %>% 
-  ggplot() +
-  geom_sf(aes(fill = change_from_hist),color = NA) +
-  scale_fill_distiller(palette = "Blues", direction = -1) +
-  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
-  labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
+min_temp_2040_plt <- plot_bcm_change(min_temp_2040_miroc, "Blues", c(5,6.5), "Temperature (°F)")
+min_temp_2040_plt
 
-min_temp_2040 %>% 
-  filter(gcm == "MIROC_rcp85") %>% 
-  ggplot() +
-  geom_sf(aes(fill = change_from_hist),color = NA) +
-  scale_fill_distiller(palette = "Blues", direction = -1) +
-  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
-  labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
+
+ggsave(filename = "bcm_tmin_miroc_2040-2069.png", plot = min_temp_2040_plt, path = here("output/maps/"), dpi = 350)
 ```
 
 
@@ -197,24 +210,16 @@ bcm_proj %>%
 
 ```{r, echo = FALSE}
 # What are the changes compared to the historical baseline at the end of the century for both climate projections?
-bcm_precip_eoc <- calc_chng_frm_hist("ppt", "2070-2099")
-bcm_precip_2040 <- calc_chng_frm_hist("ppt", "2010-2039")
+bcm_precip_2040_miroc <- calc_chng_frm_hist("ppt", "2040-2069")%>% 
+    filter(gcm == "MIROC_rcp85")
 
-bcm_precip_eoc %>% 
-  filter(gcm == "CNRM_rcp85") %>% 
-  ggplot() +
-  geom_sf(aes(fill = change_from_hist), color = NA) +
-  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
-  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
-  labs(title = "CNRM_rcp85 2070-2099 Change from Historical Baseline")
+bcm_precip_2040_miroc_plt <- plot_bcm_change(bcm_precip_2040_miroc, "YlGnBu", c(-14.5,-3), "Precipitation (in)")
+bcm_precip_2040_miroc_plt
 
-bcm_precip_eoc %>% 
-  filter(gcm == "MIROC_rcp85") %>% 
-  ggplot() +
-  geom_sf(aes(fill = change_from_hist), color = NA) +
-  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
-  geom_sf(data = ecoregion, fill = NA, color = "black", size = 1) +
-  labs(title = "MIROC_rcp85 2070-2099 Change from Historical Baseline")
+
+ggsave(filename = "bcm_precip_miroc_2040-2069.png", plot = bcm_precip_2040_miroc_plt, path = here("output/maps/"), dpi = 350)
+
+
 ```
 
 
@@ -225,4 +230,18 @@ bcm_plot(bcm_miroc, bcm_miroc$cwd, "Climatic Water Deficit (in)", "MIROC RCP 8.5
 bcm_plot(bcm_cnrm, bcm_cnrm$cwd, "Climatic Water Deficit (in)", "CNRM RCP 8.5 (warm, high rainfall)", "YlOrRd", col_limits = c(20, 40))
 ```
 
+
+```{r, echo = FALSE}
+# What are the changes compared to the historical baseline at the end of the century for both climate projections?
+bcm_cwd_2040_miroc <- calc_chng_frm_hist("cwd", "2040-2069")%>% 
+    filter(gcm == "MIROC_rcp85")
+
+bcm_cwd_2040_miroc_plt <- plot_bcm_change(bcm_cwd_2040_miroc, "YlOrRd", c(3,5.3), "Climatic Water Deficit (in)")
+bcm_cwd_2040_miroc_plt
+
+
+ggsave(filename = "bcm_cwd_miroc_2040-2069.png", plot = bcm_cwd_2040_miroc_plt, path = here("output/maps/"), dpi = 350)
+
+```
+```
 
