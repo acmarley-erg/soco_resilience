@@ -75,6 +75,7 @@ def simplify_ecoregions(ecoregions: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     
     ecoregions['l4_simple'] = np.where(ecoregions['US_L4NAME'].isin({'Point Reyes/Farallon Islands', 'Marin Hills'}), 'Bodega Coastal Hills', ecoregions['US_L4NAME'])
+    ecoregions['l4_simple'] = np.where(ecoregions['l4_simple'] == "Mayacmas Mountains", 'Mayacamas Mountains', ecoregions['l4_simple'])
     ecoregions_simp = ecoregions[['l4_simple', 'geometry']]
     ecoregions_simp = ecoregions_simp.dissolve(by = 'l4_simple', aggfunc='sum').reset_index()
     ecoregions_simp['ecoregion_acres'] = ecoregions_simp['geometry'].area / 43560
