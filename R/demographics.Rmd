@@ -42,7 +42,8 @@ block_group_dem <- tidycensus::get_acs(geography = "block group",
 ```{r}
 # clean up the shapefile
 block_group_dem_clean <- block_group_dem %>% 
-  mutate(variable_name = ifelse(variable == "B01003_001", "total_pop", "housing_units")) 
+  mutate(variable_name = ifelse(variable == "B01003_001", "total_pop", "housing_units")) %>% 
+  st_transform(crs=2226)
 
 # write to files
 write_sf(block_group_dem_clean, here("data/clean/soco_demographics/soco_demographics.shp"))
