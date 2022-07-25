@@ -20,12 +20,15 @@ Some of the data used in this analysis is not available to the public or is too 
 | Flooding risk | FEMA 100 yr flood layers | [FEMA](https://msc.fema.gov/portal/home) |
 | Landslide risk | Susceptibility to Deep-Seated Landslides | [CA Geological Survey](https://gis.conservation.ca.gov/portal/home/item.html?id=87289025c11d4ba7ae65f0f472bf7c2d) |
 | Wildfire risk | Sonoma County Wildfire Risk Index | [Sonoma County](https://sonoma-county-cwpp-hub-site-sonomacounty.hub.arcgis.com/datasets/wildfire-risk-index/explore?location=38.480806%2C-122.941170%2C10.47) |
-| Projected and historic drought | Climatic Water Deficit | [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst) |
-| Projected and historic precipitation | Precipitation | [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst) |
-| Projected and historic temperature | Man and min temperature | [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst) |
+| Projected and historical drought | Climatic Water Deficit | [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst) |
+| Projected and historical precipitation | Precipitation | [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst) |
+| Projected and historical temperature | Max and min temperature | [San Francisco Bay Area Climate-Smart Watershed Analyst](http://climate.calcommons.org/tbc3/sf-bay-watershed-analyst) |
+|Ecoregion|Level IV Ecoregions|[US Environmental Protection Agency (EPA)](https://www.epa.gov/eco-research/ecoregion-download-files-state-region-9#pane-04)|
 | Vegetation type | Sonoma County Fine-scale Veg. and Habitat Map | [Sonoma Veg Map](https://sonomavegmap.org/data-downloads/) |
 | Land use type | SoCo PRMD GIS General Plan Land Use | County of Sonoma |
+| Demographics | Population | [American Community Survey 2020](https://www.census.gov/programs-surveys/acs) |
+| Housing | Housing units | [American Community Survey 2020](https://www.census.gov/programs-surveys/acs) |
 | Priority communities | Bay Area 2050 Equity Priority Communities | [Metropolitan Transportation Commission (MTC)](https://bayareametro.github.io/Spatial-Analysis-Mapping-Projects/Project-Documentation/Equity-Priority-Communities/) |
-| x | x | [x]() |
+| Critical facilities | Critical facilities | Sonoma County Hazard Mitigation Plan |
 
 
