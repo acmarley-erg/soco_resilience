@@ -59,7 +59,7 @@ def zone_intersect(ecoregions: gpd.GeoDataFrame, intersect_layer: gpd.GeoDataFra
     """
     zones = gpd.overlay(ecoregions, intersect_layer, how='intersection')
     zones[intersect_name] = zones['geometry'].area / 43560
-    zones['percent_of_ecoregion'] = zones['acres'] / zones['ecoregion_acres'] * 100
+    zones['percent_of_ecoregion'] = zones[intersect_name] / zones['ecoregion_acres'] * 100
     zones = zones.drop('geometry', axis = 1)
     return zones
 
