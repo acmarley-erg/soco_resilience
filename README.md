@@ -5,9 +5,9 @@ This repository houses the data analysis conducted for the [Sonoma County Climat
 ### Folders:
 `output/`: Output maps, graphs, and interactive html maps of project analysis.
 
-`R/`: Mostly data visualization RMarkdowns
+`R/`: RMarkdowns used to download demographic data, visualize available data, and process some hazard data.
 
-`py/`: Most of the geospatial data analysis and processing was completed in Jupyter notebooks 
+`py/`: Jupyter notebooks used for most of the geospatial data analysis and processing conducted as well as static and interactive data visualizations used in the strategy. 
 
 ### Data
 
