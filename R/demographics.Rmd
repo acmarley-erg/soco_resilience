@@ -16,7 +16,7 @@ library(tidycensus)
 library(here)
 ```
 
-## Get demographics information for Sonoma County by block group from the AMerican Community Survey 2020
+## Get demographics information for Sonoma County by block group from the American Community Survey 2020
 
 ```{r}
 Sys.getenv("CENSUS_API_KEY")

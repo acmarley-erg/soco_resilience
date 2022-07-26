@@ -19,6 +19,8 @@ library(RColorBrewer)
 library(measurements)
 ```
 
+Markdown to clean BCM data and experiment with different visualizations
+
 ```{r, include=FALSE}
 ### read in shapefiles ###
 

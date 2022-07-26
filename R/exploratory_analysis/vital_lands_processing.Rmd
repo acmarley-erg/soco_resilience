@@ -21,6 +21,7 @@ library(fasterize)
 source(here("R/utils/change_to_raster.R"))
 ```
 
+Initial data exploration of vital lands dataset and visualization of what rasterizing the dataset would be. Not used in final analysis.
 
 ```{r}
 ##### read in the data #####

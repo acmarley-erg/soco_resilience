@@ -17,6 +17,8 @@ library(ggmap)
 library(tidygeocoder)
 ```
 
+Initial look at available data. Not used for any data processing.
+
 ```{r, include = FALSE}
 
 ### read in shapefiles ###
@@ -47,10 +49,6 @@ cities <- read_sf(here("data/raw/soco_boundaries/City_Limits.shp"))
 city_center <- st_centroid(cities)
 ```
 
-
-#### **Data source:** []()
-
-## **Hazards**
 
 ### Sea Level Rise
 

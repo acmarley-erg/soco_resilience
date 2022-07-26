@@ -21,6 +21,7 @@ library(raster)
 source(here("R/utils/change_to_raster.R"))
 ```
 
+### This Markdown was an initial test of following [NFWF Regional Coastal Resilience Assessment](https://www.nfwf.org/sites/default/files/coastalresilience/Documents/regional-coastal-resilience-assessment.pdf) methodology but was not used in the final analysis.
 
 ```{r}
 ### read in data ###
