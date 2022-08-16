@@ -11,7 +11,7 @@ This repository houses the data analysis conducted for the [Sonoma County Climat
 
 ### Data
 
-Some of the data used in this analysis is not available to the public or is too large to host on GitHub, so the `data/` folder referred to in the script is not in this repository. Below is a list of the data used in this analysis and the initial locations the data was saved to in the `data/` folder.
+Some of the data used in this analysis is not available to the public or is too large to host on GitHub, so the `data/` folder referred to in the script is not in this repository. Below is a list of the data used in this analysis and the initial locations the data was saved to in the `data/` folder. To recreate `data/`, save the data in the download location file path listed below. If data sources are not linked please reach out to the entity listed to access the data.
 
 | Data Type  | Data Name | Data Source | Download Location |
 | ------------- | ------------- | ------------- | ------------- |
